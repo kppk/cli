@@ -1,0 +1,7 @@
+[pack]
+name = "kppk/cli"
+version = "0.0.1"
+repository = "https://github.com/kppk/cli.git"
+java_release = "9"
+type = "lib"
+

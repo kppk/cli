@@ -1,7 +1,10 @@
 package kppk.cli;
 
 /**
- * TODO: Document this
+ * Flag can have short/long name and be type of Boolean or String.
+ *
+ * @see BooleanFlag
+ * @see StringFlag
  */
 public interface Flag<T> {
 

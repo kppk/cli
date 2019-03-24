@@ -1,1 +1,3 @@
-module kppk.cli {}
+module kppk.cli {
+    exports kppk.cli;
+}

@@ -1,9 +1,7 @@
 package kppk.cli;
 
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Formatter;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -11,12 +9,54 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * TODO: Document this
+ * App is the main entry point for Application definition and argument parsing.
+ * <br/>
+ * Use {@link App.AppBuilder} to create new instance of this class.
+ * <p>
+ * <br/><br/>
+ * Example of usage:
+ * <pre>{@code
+ *  public class MyCli {
+ *
+ *      private static final StringFlag FLAG_MSG = StringFlag.builder()
+ *             .setName("msg")
+ *             .build();
+ *
+ *      public static void main(String[] args) {
+ *          App.builder()
+ *                 .setName("my-cli")
+ *                 .setUsage("My great cli application.")
+ *                 .addCommand(Command.builder()
+ *                         .setName("first")
+ *                         .setUsage("First command usage message")
+ *                         .setArg(FLAG_MSG)
+ *                         .setExecutor(ctx -> first(ctx.getArg()))
+ *                         .build())
+ *                 .addCommand(Command.builder()
+ *                         .setName("second")
+ *                         .setUsage("Second command usage message")
+ *                         .setExecutor(this::second)
+ *                         .build())
+ *                 .addFlag(StringFlag.builder()
+ *                         .setName("verbose")
+ *                         .setShortName("v")
+ *                         .build())
+ *                 .build()
+ *                 .execute(args);
+ *      }
+ *
+ *     private void first(String msg) {
+ *         System.out.println(msg);
+ *     }
+ *
+ *     private void second(Context context) {
+ *     }
+ *  }
+ * }</pre>
  */
 public final class App {
 
-
-    private static final StringFlag FLAG_HELP = StringFlag.builder()
+    static final BooleanFlag FLAG_HELP = BooleanFlag.builder()
             .setName("help")
             .setShortName("h")
             .setUsage("Display this message")
@@ -26,12 +66,14 @@ public final class App {
     private final String usage;
     private final List<Flag> flags;
     private final List<Command> commands;
+    private final HelpPrinter<App> helpPrinter;
 
-    private App(String name, String usage, List<Flag> flags, List<Command> commands) {
+    private App(String name, String usage, List<Flag> flags, List<Command> commands, HelpPrinter<App> helpPrinter) {
         this.name = name;
         this.usage = usage;
         this.flags = flags;
         this.commands = commands;
+        this.helpPrinter = helpPrinter;
     }
 
     public String getName() {
@@ -50,20 +92,31 @@ public final class App {
         return commands;
     }
 
+    /**
+     * Main entry to parse program arguments.
+     *
+     * @param args Program arguments
+     * @throws NullPointerException if args is null
+     */
     public void execute(String args[]) {
+        Objects.requireNonNull(args);
         Arguments arguments = new Arguments(args);
         if (arguments.isEmpty()) {
-            printUsage(System.out);
+            helpPrinter.print(this, System.out);
             return;
         }
-        Context.ContextBuilder contextBuilder = Context.builder();
-        contextBuilder.setApp(this);
+        Context.ContextBuilder contextBuilder = Context.builder().setApp(this);
         while (arguments.hasNext()) {
             String arg = arguments.next();
             if (!parseFlag(arg, arguments, contextBuilder, flags) &&
                     !parseCommand(arg, arguments, contextBuilder, flags)) {
                 throw new IllegalArgumentException("Illegal argument " + arg);
             }
+        }
+        Context ctx = contextBuilder.build();
+        // there is an help flag and no command, print app help
+        if (ctx.getFlagValue(FLAG_HELP) && !ctx.hasCommand()) {
+            helpPrinter.print(this, System.out);
         }
 
     }
@@ -102,13 +155,13 @@ public final class App {
             if (!flag.isPresent()) {
                 throw new IllegalArgumentException("Unknown flag " + arg);
             }
-            // check next is available and it is not flag
-            if (arguments.hasNext() && !Flag.isFlag(arguments.peek())) {
-                contextBuilder.addValue(flag.get(), arguments.next());
-                return true;
-            } else if (flag.get() instanceof BooleanFlag) {
+            if (flag.get() instanceof BooleanFlag) {
                 // boolean flag can be without the value
                 contextBuilder.addValue(flag.get(), "true");
+                return true;
+            } else if (arguments.hasNext() && !Flag.isFlag(arguments.peek())) {
+                // next is available and it is not flag
+                contextBuilder.addValue(flag.get(), arguments.next());
                 return true;
             }
             throw new IllegalArgumentException("Missing value for flag " + flag.get().getName());
@@ -120,45 +173,21 @@ public final class App {
         return Stream.of(list).flatMap(Collection::stream).collect(Collectors.toList());
     }
 
-    private void printUsage(PrintStream out) {
-        Formatter formatter = new Formatter(out);
-        formatter.format("%s\n", usage);
-        formatter.format("\n");
-        formatter.format("Usage:\n");
-        formatter.format("\t%s [options]\n", name);
-        formatter.format("\n");
-        formatter.format("Options:\n");
-        flags.forEach(f -> {
-            formatter.format("\t%-20s%s\n", concat(prefix("-", f.getShortName()), prefix("--", f.getName())), f.getUsage());
-        });
-        formatter.format("\n");
-        formatter.format("Commands:\n");
-        commands.forEach(c -> {
-            formatter.format("\t%-20s%s\n", concat(c.getShortName(), c.getName()), c.getUsage());
-        });
-    }
-
-    private String concat(String... str) {
-        return Stream.of(str).filter(Objects::nonNull).collect(Collectors.joining(","));
-    }
-
-    private String prefix(String prefix, String s) {
-        if (s != null) {
-            return prefix + s;
-        }
-        return null;
-    }
-
-
+    /**
+     * Creates new instance of {@link AppBuilder}.
+     *
+     * @return new AppBuilder instance.
+     */
     public static AppBuilder builder() {
         return new AppBuilder();
     }
 
-    public static class AppBuilder {
+    public final static class AppBuilder {
         private String name;
         private String usage;
         private List<Flag> flags = new ArrayList<>();
         private List<Command> commands = new ArrayList<>();
+        private HelpPrinter<App> helpPrinter = HelpPrinter.HELP_PRINTER_APP;
 
         private AppBuilder() {
             // always add help flag
@@ -185,8 +214,13 @@ public final class App {
             return this;
         }
 
+        public AppBuilder setHelpPrinter(HelpPrinter<App> helpPrinter) {
+            this.helpPrinter = helpPrinter;
+            return this;
+        }
+
         public App build() {
-            return new App(name, usage, flags, commands);
+            return new App(name, usage, flags, commands, helpPrinter);
         }
     }
 

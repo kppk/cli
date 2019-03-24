@@ -3,7 +3,7 @@ package kppk.cli;
 import java.util.Objects;
 
 /**
- * TODO: Document this
+ * String flag can have string value.
  */
 public final class StringFlag implements Flag<String> {
 

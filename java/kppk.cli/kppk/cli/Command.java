@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * TODO: Document this
+ * Command can have flags and arguments.
  */
 public final class Command {
 
@@ -40,13 +40,19 @@ public final class Command {
         executor.accept(context);
     }
 
-    private Command(String name, String shortName, String usage, Flag arg, List<Flag> flags, Consumer<Context> executor) {
+    private Command(String name,
+                    String shortName,
+                    String usage,
+                    Flag arg,
+                    List<Flag> flags,
+                    Consumer<Context> executor,
+                    HelpPrinter<Command> helpPrinter) {
         this.name = name;
         this.shortName = shortName;
         this.usage = usage;
         this.flags = flags;
         this.arg = arg;
-        this.executor = executor;
+        this.executor = new HelpPrinterExecutor(helpPrinter, this, executor);
     }
 
     boolean matches(String name) {
@@ -58,13 +64,14 @@ public final class Command {
         return new CommandBuilder();
     }
 
-    public static class CommandBuilder {
+    public final static class CommandBuilder {
         private String name;
         private String shortName;
         private String usage;
         private List<Flag> flags = new LinkedList<>();
         private Consumer<Context> executor;
         private Flag arg;
+        private HelpPrinter<Command> helpPrinter = HelpPrinter.HELP_PRINTER_CMD;
 
         public CommandBuilder setName(String name) {
             this.name = name;
@@ -96,8 +103,35 @@ public final class Command {
             return this;
         }
 
+        public CommandBuilder setHelpPrinter(HelpPrinter<Command> helpPrinter) {
+            this.helpPrinter = helpPrinter;
+            return this;
+        }
+
         public Command build() {
-            return new Command(name, shortName, usage, arg, flags, executor);
+            return new Command(name, shortName, usage, arg, flags, executor, helpPrinter);
+        }
+    }
+
+    private final static class HelpPrinterExecutor implements Consumer<Context> {
+
+        private final HelpPrinter<Command> helpPrinter;
+        private final Consumer<Context> delegate;
+        private final Command command;
+
+        public HelpPrinterExecutor(HelpPrinter<Command> helpPrinter, Command command, Consumer<Context> delegate) {
+            this.helpPrinter = helpPrinter;
+            this.delegate = delegate;
+            this.command = command;
+        }
+
+        @Override
+        public void accept(Context context) {
+            if (context.getFlagValue(App.FLAG_HELP)) {
+                helpPrinter.print(command, System.out);
+                return;
+            }
+            delegate.accept(context);
         }
     }
 }

@@ -5,14 +5,14 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * TODO: Document this
+ * Context is used to store the result of parsing.
  */
 public final class Context {
 
-    private App app;
-    private Command command;
-    private Map<Flag, String> values;
-    private String arg;
+    private final App app;
+    private final Command command;
+    private final Map<Flag, String> values;
+    private final String arg;
 
     public String getArg() {
         return arg;
@@ -32,6 +32,9 @@ public final class Context {
                 .collect(Collectors.toMap(entry -> entry.getKey(), entry -> entry.getValue()));
     }
 
+    boolean hasCommand() {
+        return command != null;
+    }
 
     private Context(App app, Command command, String arg, Map<Flag, String> values) {
         this.app = app;
@@ -55,7 +58,7 @@ public final class Context {
         return new ContextBuilder();
     }
 
-    public static class ContextBuilder {
+    public final static class ContextBuilder {
 
         private App app;
         private Map<Flag, String> values = new HashMap<>();

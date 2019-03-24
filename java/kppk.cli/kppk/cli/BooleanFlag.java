@@ -3,7 +3,7 @@ package kppk.cli;
 import java.util.Objects;
 
 /**
- * TODO: Document this
+ * BooleanFlag is set to true if present in the cli arguments.
  */
 public final class BooleanFlag implements Flag<Boolean> {
 
@@ -72,7 +72,7 @@ public final class BooleanFlag implements Flag<Boolean> {
         return new BooleanFlagBuilder();
     }
 
-    public static class BooleanFlagBuilder {
+    public static final class BooleanFlagBuilder {
         private String name;
         private String shortName;
         private Boolean value;

@@ -49,11 +49,11 @@ public interface HelpPrinter<T> {
         }
     };
 
-    private static String concat(String... str) {
+    static String concat(String... str) {
         return Stream.of(str).filter(Objects::nonNull).collect(Collectors.joining(","));
     }
 
-    private static String prefix(String prefix, String s) {
+    static String prefix(String prefix, String s) {
         if (s != null) {
             return prefix + s;
         }

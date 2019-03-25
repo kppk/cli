@@ -33,7 +33,6 @@ public interface HelpPrinter<T> {
     };
 
     HelpPrinter<Command> HELP_PRINTER_CMD = (cmd, out) -> {
-        boolean hasFlags = !cmd.getFlags().isEmpty();
         Formatter formatter = new Formatter(out);
         formatter.format("Name:\n");
         formatter.format("\t%s - %s\n", cmd.getName(), cmd.getUsage());
